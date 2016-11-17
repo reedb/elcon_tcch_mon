@@ -8,6 +8,8 @@ Based on work by user Coulomb @ http://www.diyelectriccar.com
 
 import struct
 import binascii
+import time
+import serial
 from sys import exit 
 
 # Test data
