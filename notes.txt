@@ -1,0 +1,2 @@
+lsusb
+ls -l /sys/class/tty

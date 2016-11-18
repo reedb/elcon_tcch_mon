@@ -10,15 +10,36 @@ import struct
 import binascii
 import time
 import serial
-from sys import exit 
+import sys 
 
-# Test data
+if len(sys.argv) == 2: 
+    def_port = sys.argv[1]
+else: def_port = '/dev/ttyUSB0'
+
+ser = serial.Serial(
+	port=def_port,
+	baudrate=2400,
+	parity=serial.PARITY_NONE,
+	stopbits=serial.STOPBITS_ONE,
+	bytesize=serial.EIGHTBITS
+)
+
+ser.isOpen()
+
+# Test data, a "LISTEN" packet, as sent from TCCH-120-15.
 #
-wire_data =             b'\xFF\xFE\xF0\x4A\x02\x0D\x14\x14\x00\x00\x01\x41\x64\x3A\x16\x41' 
-wire_data = wire_data + b'\x4A\x70\xF0\x00\x00\x00\x00\x43\x21\x5E\x20\x40\x2D\x18\x11\x00'
-wire_data = wire_data + b'\x00\x00\x00\x43\x21\x72\xE6\xFF\x0A\x41\x70\x00\x00\x00\x00\x00'
-wire_data = wire_data + b'\x00\x43\xB0\xA2\x0C\x43\x4A\x19\x9A\x40\x2E\x2C\xCE\x40\x2E\x2C'
-wire_data = wire_data + b'\xCE\x00\x00\x00\x00\x3D\x61\xF2\x59\x00\x01\x02\x01\x01\x5F'
+send_data =             b'\xFF\xFE\xF0\x4A\x02\x0D\x14\x14\x00\x00\x01\x41\x64\x3A\x16\x41' 
+send_data = send_data + b'\x4A\x70\xF0\x00\x00\x00\x00\x43\x21\x5E\x20\x40\x2D\x18\x11\x00'
+send_data = send_data + b'\x00\x00\x00\x43\x21\x72\xE6\xFF\x0A\x41\x70\x00\x00\x00\x00\x00'
+send_data = send_data + b'\x00\x43\xB0\xA2\x0C\x43\x4A\x19\x9A\x40\x2E\x2C\xCE\x40\x2E\x2C'
+send_data = send_data + b'\xCE\x00\x00\x00\x00\x3D\x61\xF2\x59\x00\x01\x02\x01\x01\x5F'
+ser.write(send_data)
+
+while (ser.inWaiting() < 79):
+	print '\r' + "Characters in buffer: " + str(ser.inWaiting()),
+	
+wire_data = ser.read(79)
+	
 
 # Packet structure format specifier. See: https://docs.python.org/2/library/struct.html
 #
@@ -63,15 +84,15 @@ unpacked = struct.unpack(struct_format, wire_data)
 #
 if (unpacked[0] != 0xFFFE):
     print "Incorrect start characters: 0x" + format(unpacked[0],  '04x').upper()
-    exit(1)
+    sys.exit(1)
 
 if (unpacked[1] != 0xF0):
     print "Incorrect type: 0x" + format(unpacked[1],  '02x').upper()
-    exit(2)
+    sys.exit(2)
 
 if (unpacked[2] != 74):
     print "Incorrect length: " + format(unpacked[2])
-    exit(3)
+    sys.exit(3)
     
 # Packet check-sum calculation: XOR all bytes in packet, exluding Start characters and Check sum.
 #
@@ -79,7 +100,7 @@ stripped = wire_data[2:78]
 checksum = reduce(lambda x,y:x^y, map(ord, stripped))
 if (unpacked[30] != checksum):
     print "Incorrect checksum. Calculated: 0x" + format(checksum, '02x').upper() + "  Read: 0x" + format(unpacked[30], '02x').upper()
-    exit(4)
+    sys.exit(4)
 
 print "Dumping Listen Packet -"
 print "  Packet start:          0x" + format(unpacked[0],  '04x').upper()
@@ -114,4 +135,6 @@ print "  Relay flag:            0x" + format(unpacked[28], '02x').upper()
 print "  Serial error count:    0x" + format(unpacked[29], '02x').upper()
 print "  Check sum:             0x" + format(unpacked[30], '02x').upper()
 
-exit(0)
+ser.close()
+
+sys.exit(0)
